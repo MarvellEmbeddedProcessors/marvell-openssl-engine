@@ -206,6 +206,7 @@ static int ecdh_sess_create(struct rte_crypto_asym_xform *ecdh_xform,
 static int perform_crypto_op(struct rte_crypto_op *crypto_op)
 {
 	struct rte_crypto_op *result_ops[MAX_DEQUEUE_OPS];
+	uint16_t nb_ops;
 	unsigned int lcoreid = rte_lcore_id();
 	uint8_t devid = asym_dev_id[lcoreid];
 	int qp_id = asym_queues[lcoreid];
@@ -231,10 +232,10 @@ static int perform_crypto_op(struct rte_crypto_op *crypto_op)
 	pause_async_job();
 
 	while (crypto_op->status == RTE_CRYPTO_OP_STATUS_NOT_PROCESSED) {
-		/* We shouldn't be here. If so, then some issue with async callback */
-		engine_log(ENG_LOG_ERR, "Crypto (ECDSA) op status not processed (err: %d)\n",
-				crypto_op->status);
-		ASYNC_pause_job();
+		nb_ops = rte_cryptodev_dequeue_burst(devid, qp_id, result_ops,
+							 MAX_DEQUEUE_OPS);
+		if (nb_ops == 0)
+		   ASYNC_pause_job();
 	}
 
 	CPT_ATOMIC_DEC(cpt_num_asym_requests_in_flight);
