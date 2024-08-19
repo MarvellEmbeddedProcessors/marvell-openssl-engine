@@ -313,6 +313,7 @@ IV) Supported Features
   f) Running multi-process applications with openssl.cnf file
      Due to the limitations of DPDK, forking applications need to ensure that openssl.cnf file is loaded after fork().
      With openssl speed with -multi option, use OPENSSL_CONF_MULTI env instead of OPENSSL_CONF for this reason.
+     Engine is loaded from openssl.cnf, do not use -engine argument when OPENSSL_CONF_MULTI is employed.
 
     # OPENSSL_CONF_MULTI=openssl.cnf openssl speed -multi 4 -elapsed rsa2048
 
