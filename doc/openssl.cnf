@@ -1,0 +1,99 @@
+# SPDX-License-Identifier: Marvell-MIT
+# Copyright (c) 2024 Marvell.
+#
+
+# This definition stops the following lines choking if HOME isn't
+# defined.
+HOME			= .
+
+openssl_conf = openssl_init
+
+[ openssl_init ]
+engines = engine_section
+
+[ eal_params_section ]
+eal_params_common = "E_DPDKCPT --socket-mem=500  -d librte_mempool_ring.so"
+eal_params_cptpf_dbdf = "0002:10:00.0"
+
+[ engine_section ]
+dpdk_engine = dpdkcpt_engine_section
+
+[ dpdkcpt_engine_section ]
+dynamic_path = /usr/local/lib/engines-1.1/dpdk_engine.so
+eal_params = $eal_params_section::eal_params_common
+# eal_params = $eal_params_section::eal_params_common --file-prefix e_dpdkcpt -l 1
+
+# Perform DPDK EAL init - rte_eal_init (default: yes)
+# Disable if the application does EAL init before loading engine.
+eal_init = yes
+
+# Append process id to dpdk file prefix, turn on to avoid sharing hugepages/VF with other processes
+# If setting to no, manually add --file-prefix <name> to eal_params
+eal_pid_in_fileprefix = yes
+
+# Append -l <sched_getcpu()> to eal_params
+# If setting to no, manually add -l <lcore list> to eal_params
+eal_core_by_cpu = yes
+
+# Whitelist cptvf_dbdf PCI device (uncomment in Octeon TX/TX2 to use CPT VFs)
+#    DDDD:BB: come from $eal_params_cptvf_dbdf
+#    dd:f comes from sched_getcpu()
+# eal_cptvf_by_cpu = $eal_params_section::eal_params_cptpf_dbdf
+
+# Assign CPT device queues to lcore numbers.
+# Without this config, queue 0 and 1 of VF0 is assigned to lcore 0 by default
+# Refer the below config for example
+# cptvf_queues = {{0, 0, 1}, {2, 3, 3}}
+# VF	Queue	Core
+# 0	0   	0
+# 0 	1   	0
+# 0 	2   	1
+# 1 	0   	2
+# 1 	1   	3
+# 1 	2   	3
+cptvf_queues = {{0, 0}}
+
+# Crypto hw to use
+# crypto_driver = "crypto_openssl"
+# For OcteonTx2/CN98xx/CN96xx use crypto_cn9k
+crypto_driver = "crypto_cn10k"
+
+# Enable/Disable Asymmetric or Symmetric operations
+# possible values - {'NONE', 'SYM', 'ASYM', 'ALL', 'list of algs(eg:- RSA:EC:CBC)'}
+# Default value = ALL
+# Codes corresponding to repective algorithms mentioned below:
+# ALG                 Code
+#
+# RSA                 RSA
+# ECDSA & ECDH        EC
+# AES-CBC             CBC
+# AES-GCM             GCM
+# CHACHA20-POLY1305   CPOLY
+#
+engine_alg_support = ALL
+# Configure params such as number of sessions, mbufs, sym/asym ops, qp_desc_count and pool cache size
+# Choose pool_cachesz value such that (1.5*pool_cachesz) is less than n(number of elements in the mempool).
+# else pool_cachesz value will be updated to the allowed maximum cache size.
+# Pool name		n value
+#
+# crypto_asym_op_pool	asym_ops * asym_dev_count
+# asym_session_pool	sessions * 2 * asym_dev_count
+# mbuf_pool		mbufs * sym_dev_count
+# crypto_sym_op_pool	sym_ops * sym_dev_count
+# sym_session_pool	sessions * sym_dev_count
+#
+#Note:- If configured value is very large and if there are no enough hugepages available, execution will fail.
+dpdk_qp_conf_params = "sessions=131072, mbufs=4096, sym_ops=4096, asym_ops=1024, pool_cachesz=512, asym_desc_cnt=512, sym_desc_cnt=2048"
+
+# Configure HW Offload Threshold Packet Size
+hw_offload_pkt_sz_thresh = 0
+
+# Deployment of log levels in OpenSSL Engine
+# Possible values - {'ENG_LOG_STDERR', 'ENG_LOG_EMERG', 'ENG_LOG_ERR', 'ENG_LOG_INFO'}
+# Default value - ENG_LOG_ERR
+#
+engine_log_level = ENG_LOG_ERR
+
+# Engine logs to be dumped here.
+#
+# engine_log_file = <path to eng_log.txt>

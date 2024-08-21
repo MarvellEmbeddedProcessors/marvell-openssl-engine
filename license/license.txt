@@ -1,0 +1,13 @@
+OpenSSL DPDK ENGINE License Summary
+===================================
+
+This software component contains source code developed from Marvell which links
+against libraries from DPDK and OpenSSL. In the event of a conflict, the
+license header of a specific file or library takes precedence over this file.
+This is just a summary file.
+
+Component   : OpenSSL ENGINE DPDK
+License     : Marvell-MIT
+License Text: Marvell-MIT
+Project URL : NA
+Directories : *

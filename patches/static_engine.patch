@@ -1,0 +1,109 @@
+diff -Nru openssl-1.1.1h_orig/Configure openssl-1.1.1h/Configure
+--- openssl-1.1.1h_orig/Configure	2021-01-05 15:03:43.998332665 +0530
++++ openssl-1.1.1h/Configure	2021-01-06 18:48:23.017954977 +0530
+@@ -327,7 +327,7 @@
+     "bn", "ec", "rsa", "dsa", "dh", "sm2", "dso", "engine",
+     "buffer", "bio", "stack", "lhash", "rand", "err",
+     "evp", "asn1", "pem", "x509", "x509v3", "conf", "txt_db", "pkcs7", "pkcs12", "comp", "ocsp", "ui",
+-    "cms", "ts", "srp", "cmac", "ct", "async", "kdf", "store"
++    "cms", "ts", "srp", "cmac", "ct", "async", "kdf", "store", "dpdkcpt"
+     ];
+ # test/ subdirectories to build
+ $config{tdirs} = [ "ossl_shim" ];
+@@ -641,6 +641,10 @@
+ # If you change this, update apps/version.c
+ my @known_seed_sources = qw(getrandom devrandom os egd none rdcpu librandom);
+ my @seed_sources = ();
++
++# Include DPDK headers path
++push (@{$useradd{CPPINCLUDES}}, $ENV{RTE_SDK_INCLUDE});
++
+ while (@argvcopy)
+         {
+         $_ = shift @argvcopy;
+diff -Nru openssl-1.1.1h_orig/crypto/dpdkcpt/build.info openssl-1.1.1h/crypto/dpdkcpt/build.info
+--- openssl-1.1.1h_orig/crypto/dpdkcpt/build.info	1970-01-01 05:30:00.000000000 +0530
++++ openssl-1.1.1h/crypto/dpdkcpt/build.info	2021-01-06 21:41:32.472988088 +0530
+@@ -0,0 +1,4 @@
++LIBS=../../libcrypto
++SOURCE[../../libcrypto]=\
++	e_dpdkcpt.c e_dpdkcpt_aes_cbc_hmac_sha1.c e_dpdkcpt_cbc.c e_dpdkcpt_ecdsa.c \
++	 e_dpdkcpt_gcm.c e_dpdkcpt_malloc.c e_dpdkcpt_rsa.c e_dpdkcpt_cpoly.c
+diff -Nru openssl-1.1.1h_orig/crypto/init.c openssl-1.1.1h/crypto/init.c
+--- openssl-1.1.1h_orig/crypto/init.c	2021-01-05 15:03:44.086333258 +0530
++++ openssl-1.1.1h/crypto/init.c	2021-01-06 15:47:27.405980375 +0530
+@@ -354,6 +354,20 @@
+     return 1;
+ }
+ # endif
++
++# ifndef OPENSSL_NO_DPDKCPT
++static CRYPTO_ONCE engine_dpdkcpt = CRYPTO_ONCE_STATIC_INIT;
++DEFINE_RUN_ONCE_STATIC(ossl_init_engine_dpdkcpt)
++{
++#   ifdef OPENSSL_INIT_DEBUG
++    fprintf(stderr, "OPENSSL_INIT: ossl_init_engine_dpdkcpt: "
++                    "ENGINE_load_dpdkcpt()\n");
++#   endif
++    ENGINE_load_dpdkcpt();
++    return 1;
++}
++#endif
++
+ static CRYPTO_ONCE engine_dynamic = CRYPTO_ONCE_STATIC_INIT;
+ DEFINE_RUN_ONCE_STATIC(ossl_init_engine_dynamic)
+ {
+@@ -723,6 +737,11 @@
+             && !RUN_ONCE(&engine_rdrand, ossl_init_engine_rdrand))
+         return 0;
+ # endif
++# ifndef OPENSSL_NO_DPDKCPT
++    if ((opts & OPENSSL_INIT_ENGINE_DPDKCPT)
++            && !RUN_ONCE(&engine_dpdkcpt, ossl_init_engine_dpdkcpt))
++        return 0;
++# endif
+     if ((opts & OPENSSL_INIT_ENGINE_DYNAMIC)
+             && !RUN_ONCE(&engine_dynamic, ossl_init_engine_dynamic))
+         return 0;
+diff -Nru openssl-1.1.1h_orig/include/crypto/engine.h openssl-1.1.1h/include/crypto/engine.h
+--- openssl-1.1.1h_orig/include/crypto/engine.h	2021-01-05 15:03:44.246334338 +0530
++++ openssl-1.1.1h/include/crypto/engine.h	2021-01-06 14:14:02.334012409 +0530
+@@ -18,3 +18,6 @@
+ void engine_load_dasync_int(void);
+ void engine_load_afalg_int(void);
+ void engine_cleanup_int(void);
++# ifndef OPENSSL_NO_DPDKCPT
++void ENGINE_load_dpdkcpt(void);
++# endif
+diff -Nru openssl-1.1.1h_orig/include/openssl/crypto.h openssl-1.1.1h/include/openssl/crypto.h
+--- openssl-1.1.1h_orig/include/openssl/crypto.h	2021-01-05 15:03:44.246334338 +0530
++++ openssl-1.1.1h/include/openssl/crypto.h	2021-01-06 18:52:17.483359913 +0530
+@@ -373,6 +373,7 @@
+ # define OPENSSL_INIT_ATFORK                 0x00020000L
+ /* OPENSSL_INIT_BASE_ONLY                    0x00040000L */
+ # define OPENSSL_INIT_NO_ATEXIT              0x00080000L
++# define OPENSSL_INIT_ENGINE_DPDKCPT         0x40000000L
+ /* OPENSSL_INIT flag range 0xfff00000 reserved for OPENSSL_init_ssl() */
+ /* Max OPENSSL_INIT flag value is 0x80000000 */
+ 
+@@ -380,7 +381,7 @@
+ # define OPENSSL_INIT_ENGINE_ALL_BUILTIN \
+     (OPENSSL_INIT_ENGINE_RDRAND | OPENSSL_INIT_ENGINE_DYNAMIC \
+     | OPENSSL_INIT_ENGINE_CRYPTODEV | OPENSSL_INIT_ENGINE_CAPI | \
+-    OPENSSL_INIT_ENGINE_PADLOCK)
++    OPENSSL_INIT_ENGINE_PADLOCK | OPENSSL_INIT_ENGINE_DPDKCPT)
+ 
+ 
+ /* Library initialisation functions */
+diff -Nru openssl-1.1.1h_orig/test/testutil/testutil_init.c openssl-1.1.1h/test/testutil/testutil_init.c
+--- openssl-1.1.1h_orig/test/testutil/testutil_init.c	2021-01-05 15:03:44.346335012 +0530
++++ openssl-1.1.1h/test/testutil/testutil_init.c	2021-01-06 14:14:28.534218971 +0530
+@@ -11,5 +11,8 @@
+ 
+ int global_init(void)
+ {
++# ifndef OPENSSL_NO_DPDKCPT
++    OPENSSL_init_crypto(OPENSSL_INIT_ENGINE_DPDKCPT, NULL);
++# endif
+     return 1;
+ }

@@ -1,0 +1,165 @@
+diff --git a/apps/speed.c b/apps/speed.c
+index d4ae7ab7bf..685fe2ce8f 100644
+--- a/apps/speed.c
++++ b/apps/speed.c
+@@ -8,6 +8,7 @@
+  * https://www.openssl.org/source/license.html
+  */
+ 
++#define _GNU_SOURCE
+ #undef SECONDS
+ #define SECONDS                 3
+ #define RSA_SECONDS             10
+@@ -19,6 +20,9 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
++#include <sys/ipc.h>
++#include <sys/shm.h>
++#include <sys/sysinfo.h>
+ #include <math.h>
+ #include "apps.h"
+ #include "progs.h"
+@@ -28,6 +32,7 @@
+ #include <openssl/evp.h>
+ #include <openssl/objects.h>
+ #include <openssl/async.h>
++#include "internal/conf.h"
+ #if !defined(OPENSSL_SYS_MSDOS)
+ # include OPENSSL_UNISTD
+ #endif
+@@ -1383,6 +1388,19 @@ static int run_benchmark(int async_jobs,
+     return error ? -1 : total_op_count;
+ }
+ 
++#define NUM_CORES get_nprocs()
++#define SHM_KEY 6789
++
++static inline void cpu_pause()
++{
++    __asm__ __volatile__ ("nop");
++    __asm__ __volatile__ ("nop");
++    __asm__ __volatile__ ("nop");
++    __asm__ __volatile__ ("nop");
++}
++
++static uint64_t *shm;
++
+ int speed_main(int argc, char **argv)
+ {
+     ENGINE *e = NULL;
+@@ -1590,6 +1608,10 @@ int speed_main(int argc, char **argv)
+         case OPT_MULTI:
+ #ifndef NO_FORK
+             multi = atoi(opt_arg());
++            if (multi > NUM_CORES) {
++                printf ("System running with only %d CPU\n", NUM_CORES);
++                goto end;
++            }
+ #endif
+             break;
+         case OPT_ASYNCJOBS:
+@@ -1805,14 +1827,69 @@ int speed_main(int argc, char **argv)
+ #endif
+     }
+ 
++     int shmid;
++     key_t shm_key = SHM_KEY;
++     if ((shmid = shmget(shm_key, sizeof(uint64_t)/* bytes of shm */, IPC_CREAT | 0666)) < 0) {
++         perror("shmget");
++         exit(1);
++     }
++
++     if ((shm = shmat(shmid, NULL, 0)) == (uint64_t *) -1) {
++         perror("shmat");
++         exit(1);
++     }
++
++
+ #ifndef NO_FORK
+     if (multi && do_multi(multi, size_num))
+         goto show_res;
+ #endif
+ 
++    /* If dpdk_engine is already loaded, it means it is loaded via openssl conf.
++     * dpdk_engine doesn't support such loading when -multi is used (no fork after loading)
++     */
++    if (multi) {
++        e = ENGINE_get_first();
++        while (e) {
++            if (strcmp("dpdk_engine", ENGINE_get_id(e)) == 0) {
++                BIO_printf(bio_err, "dpdk_engine cannot be loaded using OPENSSL_CONF when -multi is enabled.\n"
++                                    "Use OPENSSL_CONF_MULTI env variable to load config file\n");
++                exit(1);
++            }
++            e = ENGINE_get_next(e);
++        }
++        e = NULL;
++    }
++
+     /* Initialize the engine after the fork */
+     e = setup_engine(engine_id, 0);
+ 
++    char* multi_conf;
++    multi_conf = getenv("OPENSSL_CONF_MULTI");
++    if (multi && multi_conf != NULL) {
++        if (CONF_modules_load_file(multi_conf, NULL, 0) <=0 ) {
++            BIO_printf(bio_err, "Error loading config file set in OPENSSL_CONF_MULTI=%s\n", multi_conf);
++            exit(1);
++        }
++        if ((e = ENGINE_by_id("dpdk_engine")) != NULL &&
++                !ENGINE_set_default(e, ENGINE_METHOD_ALL)) {
++            BIO_printf(bio_err, "can't use that engine\n");
++            ERR_print_errors(bio_err);
++            ENGINE_free(e);
++            e = NULL;
++        }
++    }
++
++    static struct timespec start, end;
++    if(multi)
++    {
++        /* Start barrier */
++        __atomic_fetch_sub(shm, 1, __ATOMIC_RELAXED);
++        while(__atomic_load_n(shm, __ATOMIC_RELAXED) != 0)
++            cpu_pause();
++    }
++    clock_gettime(CLOCK_MONOTONIC_RAW, &start);
++
+     /* No parameters; turn on everything. */
+     if ((argc == 0) && !doit[D_EVP]) {
+         for (i = 0; i < ALGOR_NUM; i++)
+@@ -3193,6 +3270,11 @@ int speed_main(int argc, char **argv)
+     }
+ 
+ #endif                          /* OPENSSL_NO_EC */
++    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
++    BIO_printf(bio_err,
++           "pid %u, start-end %lu.%lu - %lu.%lu\n",
++           getpid(), start.tv_sec, start.tv_nsec,
++           end.tv_sec, end.tv_nsec);
+ #ifndef NO_FORK
+  show_res:
+ #endif
+@@ -3469,6 +3551,9 @@ static int do_multi(int multi, int size_num)
+     int *fds;
+     static char sep[] = ":";
+ 
++      *(uint64_t *)shm = multi;
++      __atomic_thread_fence(__ATOMIC_SEQ_CST);
++
+     fds = app_malloc(sizeof(*fds) * multi, "fd buffer for do_multi");
+     for (n = 0; n < multi; ++n) {
+         if (pipe(fd) == -1) {
+@@ -3491,6 +3576,11 @@ static int do_multi(int multi, int size_num)
+             mr = 1;
+             usertime = 0;
+             free(fds);
++
++            cpu_set_t msk;
++            CPU_ZERO(&msk);
++            CPU_SET((n+1)%NUM_CORES, &msk);
++            sched_setaffinity(getpid(), sizeof(cpu_set_t), &msk);
+             return 0;
+         }
+         printf("Forked child %d\n", n);

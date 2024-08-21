@@ -1,0 +1,9 @@
+1.0
+  * Support for asynchronous processing
+  * Support for pipeline changes
+  * Support for DPDK 23.11
+  * Support for Chacha20-Poly1305
+  * Support for AES128/256-CBC-HMAC-SHA1, AES-128/256-GCM ciphersuites
+  * Support for OCTEON 9xx and 106xx
+  * Support of RSA, ECDH, ECDSA algorithms
+  * Support for ECDSA P521 curve
