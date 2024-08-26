@@ -20,7 +20,11 @@
 #include <openssl/crypto.h>
 #include <crypto/poly1305.h>
 #include <crypto/chacha.h>
+#if OPENSSL_API_LEVEL >= 30000
+#include <openssl/evp.h>
+#else
 #include <evp_local.h>
+#endif
 
 #include <rte_eal.h>
 #include <rte_errno.h>

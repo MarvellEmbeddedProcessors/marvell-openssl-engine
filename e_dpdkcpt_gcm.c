@@ -17,8 +17,13 @@
 #include <openssl/modes.h>
 #include <openssl/aes.h>
 #include <openssl/crypto.h>
+#if OPENSSL_API_LEVEL >= 30000
+#include <crypto/modes.h>
+#include <openssl/evp.h>
+#else
 #include <modes_local.h>
 #include <evp_local.h>
+#endif
 
 #include <rte_eal.h>
 #include <rte_mempool.h>
