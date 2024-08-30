@@ -1,6 +1,0 @@
-[gerrit]
-host=sj1git1.cavium.com
-port=29418
-project=IP/SW/toolkits/openssl-engine-dpdk
-defaultbranch=openssl-engine-dpdk-19.11-devel
-
