@@ -452,6 +452,15 @@ int ecdsa_verify(int type, const unsigned char *dgst, int dgst_len,
 	if (!setup_ecdsa_verify_xform(asym_xform, ecgroup))
 		goto err;
 
+#if RTE_VERSION < RTE_VERSION_NUM(23, 11, 0, 99)
+	if (!set_ec_point(&ecdsa_param->q, ecgroup,
+			  EC_KEY_get0_public_key(eckey)))
+#else
+	if (!set_ec_point(&asym_xform->ec.q, ecgroup,
+			  EC_KEY_get0_public_key(eckey)))
+#endif
+		goto err;
+
 	if (!ecdsa_sess_create(asym_xform, &sess))
 		goto err;
 
@@ -470,15 +479,6 @@ int ecdsa_verify(int type, const unsigned char *dgst, int dgst_len,
 		goto err;
 
 	memcpy(ecdsa_param->message.data, dgst, dgst_len);
-
-#if RTE_VERSION < RTE_VERSION_NUM(23, 11, 0, 99)
-	if (!set_ec_point(&ecdsa_param->q, ecgroup,
-			  EC_KEY_get0_public_key(eckey)))
-#else
-	if (!set_ec_point(&asym_xform->ec.q, ecgroup,
-			  EC_KEY_get0_public_key(eckey)))
-#endif
-		goto err;
 
 	if (d2i_ECDSA_SIG(&sig_st, &sigbuf, sig_len) == NULL)
 		goto err;
