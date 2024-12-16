@@ -399,6 +399,13 @@ priv_enc_start:
 		}
 	}
 
+#if RTE_VERSION >= RTE_VERSION_NUM(24, 11, 0, 0)
+ 	 if (padding == RSA_NO_PADDING)
+    		rsa_xform->rsa.padding.type = RTE_CRYPTO_RSA_PADDING_NONE;
+  	else
+    		rsa_xform->rsa.padding.type = RTE_CRYPTO_RSA_PADDING_PKCS1_5;
+#endif
+
 	/* Session Configuration */
 	ret = asym_sess_create(rsa_xform, &sess);
 	if (unlikely(ret < 0)) {
@@ -417,13 +424,17 @@ priv_enc_start:
 	asym_op->rsa.sign.length = flen;
 	asym_op->rsa.sign.data = to;
 	if (padding == RSA_NO_PADDING)
-#if RTE_VERSION >= RTE_VERSION_NUM(22, 11, 0, 99)
+#if RTE_VERSION >= RTE_VERSION_NUM(24, 11, 0, 0)
+		;
+#elif RTE_VERSION >= RTE_VERSION_NUM(22, 11, 0, 99)
 		asym_op->rsa.padding.type = RTE_CRYPTO_RSA_PADDING_NONE;
 #else
 		asym_op->rsa.pad = RTE_CRYPTO_RSA_PADDING_NONE;
 #endif
 	else if (padding == RSA_PKCS1_PADDING)
-#if RTE_VERSION >= RTE_VERSION_NUM(22, 11, 0, 99)
+#if RTE_VERSION >= RTE_VERSION_NUM(24, 11, 0, 0)
+		;
+#elif RTE_VERSION >= RTE_VERSION_NUM(22, 11, 0, 99)
 		asym_op->rsa.padding.type = RTE_CRYPTO_RSA_PADDING_PKCS1_5;
 #else
 		asym_op->rsa.pad = RTE_CRYPTO_RSA_PADDING_PKCS1_5;
@@ -497,6 +508,13 @@ int dpdk_rsa_pub_dec(int flen, const unsigned char *from, unsigned char *to,
 	/* Setup public xform opertions */
 	setup_non_crt_pub_op_xform(rsa_xform, rsa);
 
+#if RTE_VERSION >= RTE_VERSION_NUM(24, 11, 0, 0)
+  	if (padding == RSA_NO_PADDING)
+    		rsa_xform->rsa.padding.type = RTE_CRYPTO_RSA_PADDING_NONE;
+  	else
+    		rsa_xform->rsa.padding.type = RTE_CRYPTO_RSA_PADDING_PKCS1_5;
+#endif
+
 	/* Session Configuration */
 	ret = asym_sess_create(rsa_xform, &sess);
 	if (unlikely(ret < 0)) {
@@ -520,13 +538,17 @@ int dpdk_rsa_pub_dec(int flen, const unsigned char *from, unsigned char *to,
 	asym_op->rsa.sign.length = flen;
 
 	if (padding == RSA_NO_PADDING)
-#if RTE_VERSION >= RTE_VERSION_NUM(22, 11, 0, 99)
+#if RTE_VERSION >= RTE_VERSION_NUM(24, 11, 0, 0)
+		;
+#elif RTE_VERSION >= RTE_VERSION_NUM(22, 11, 0, 99)
 		asym_op->rsa.padding.type = RTE_CRYPTO_RSA_PADDING_NONE;
 #else
 		asym_op->rsa.pad = RTE_CRYPTO_RSA_PADDING_NONE;
 #endif
 	else if (padding == RSA_PKCS1_PADDING)
-#if RTE_VERSION >= RTE_VERSION_NUM(22, 11, 0, 99)
+#if RTE_VERSION >= RTE_VERSION_NUM(24, 11, 0, 0)
+		;
+#elif RTE_VERSION >= RTE_VERSION_NUM(22, 11, 0, 99)
 		asym_op->rsa.padding.type = RTE_CRYPTO_RSA_PADDING_PKCS1_5;
 #else
 		asym_op->rsa.pad = RTE_CRYPTO_RSA_PADDING_PKCS1_5;
@@ -584,6 +606,13 @@ int dpdk_rsa_pub_enc(int flen, const unsigned char *from, unsigned char *to,
 	/* Setup public xform operations */
 	setup_non_crt_pub_op_xform(rsa_xform, rsa);
 
+#if RTE_VERSION >= RTE_VERSION_NUM(24, 11, 0, 0)
+  	if (padding == RSA_NO_PADDING)
+    		rsa_xform->rsa.padding.type = RTE_CRYPTO_RSA_PADDING_NONE;
+  	else
+    		rsa_xform->rsa.padding.type = RTE_CRYPTO_RSA_PADDING_PKCS1_5;
+#endif
+
 	/* Session Configuration */
 	ret = asym_sess_create(rsa_xform, &sess);
 	if (unlikely(ret < 0)) {
@@ -603,13 +632,17 @@ int dpdk_rsa_pub_enc(int flen, const unsigned char *from, unsigned char *to,
 	asym_op->rsa.cipher.length = 0;
 	asym_op->rsa.cipher.data = to;
 	if (padding == RSA_NO_PADDING)
-#if RTE_VERSION >= RTE_VERSION_NUM(22, 11, 0, 99)
+#if RTE_VERSION >= RTE_VERSION_NUM(24, 11, 0, 0)
+		;
+#elif RTE_VERSION >= RTE_VERSION_NUM(22, 11, 0, 99)
 		asym_op->rsa.padding.type = RTE_CRYPTO_RSA_PADDING_NONE;
 #else
 		asym_op->rsa.pad = RTE_CRYPTO_RSA_PADDING_NONE;
 #endif
 	else if (padding == RSA_PKCS1_PADDING)
-#if RTE_VERSION >= RTE_VERSION_NUM(22, 11, 0, 99)
+#if RTE_VERSION >= RTE_VERSION_NUM(24, 11, 0, 0)
+		;
+#elif RTE_VERSION >= RTE_VERSION_NUM(22, 11, 0, 99)
 		asym_op->rsa.padding.type = RTE_CRYPTO_RSA_PADDING_PKCS1_5;
 #else
 		asym_op->rsa.pad = RTE_CRYPTO_RSA_PADDING_PKCS1_5;
@@ -666,6 +699,13 @@ int dpdk_rsa_priv_dec(int flen, const unsigned char *from, unsigned char *to,
 	/* Setup priv xform opertions */
 	setup_crt_priv_op_xform(rsa_xform, rsa);
 
+#if RTE_VERSION >= RTE_VERSION_NUM(24, 11, 0, 0)
+  	if (padding == RSA_NO_PADDING)
+    		rsa_xform->rsa.padding.type = RTE_CRYPTO_RSA_PADDING_NONE;
+  	else
+    		rsa_xform->rsa.padding.type = RTE_CRYPTO_RSA_PADDING_PKCS1_5;
+#endif
+
 	/* Session Configuration */
 	ret = asym_sess_create(rsa_xform, &sess);
 	if (unlikely(ret < 0)) {
@@ -685,13 +725,17 @@ int dpdk_rsa_priv_dec(int flen, const unsigned char *from, unsigned char *to,
 	asym_op->rsa.cipher.data = from;
 	asym_op->rsa.cipher.length = flen;
 	if (padding == RSA_NO_PADDING)
-#if RTE_VERSION >= RTE_VERSION_NUM(22, 11, 0, 99)
+#if RTE_VERSION >= RTE_VERSION_NUM(24, 11, 0, 0)
+		;
+#elif RTE_VERSION >= RTE_VERSION_NUM(22, 11, 0, 99)
 		asym_op->rsa.padding.type = RTE_CRYPTO_RSA_PADDING_NONE;
 #else
 		asym_op->rsa.pad = RTE_CRYPTO_RSA_PADDING_NONE;
 #endif
 	else if (padding == RSA_PKCS1_PADDING)
-#if RTE_VERSION >= RTE_VERSION_NUM(22, 11, 0, 99)
+#if RTE_VERSION >= RTE_VERSION_NUM(24, 11, 0, 0)
+		;
+#elif RTE_VERSION >= RTE_VERSION_NUM(22, 11, 0, 99)
 		asym_op->rsa.padding.type = RTE_CRYPTO_RSA_PADDING_PKCS1_5;
 #else
 		asym_op->rsa.pad = RTE_CRYPTO_RSA_PADDING_PKCS1_5;
